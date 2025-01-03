@@ -9,7 +9,7 @@
 #define guassonFilter_h
 
 // #include <smmintrin.h>
-// #include <emmintrin.h>
+#include <emmintrin.h>
 // #include <xmmintrin.h>
 // #include <intrin.h>
 
@@ -19,7 +19,7 @@ typedef struct {
 } RGBA;
 
 typedef union {
-    __m128i sse;
+    __m128i sse; // first 4 bytes are first RGBA
     unsigned char E[16];
 } RGBA_x4;
 
@@ -31,6 +31,11 @@ typedef struct {
     float r, g, b, a;
 } RGBAf;
 
+typedef union {
+    __m128 sse;
+    float E [4];
+} RGBAf_x1;
+
 // Define an Image structure
 typedef struct {
     int width;
@@ -38,12 +43,22 @@ typedef struct {
     RGBA *pixels;
 } Image;
 
-Image *loadImage(const char *filename);
+typedef struct {
+    int width;
+    int height;
+    RGBAf *pixels;
+} Imagef;
+
+Imagef *loadImage(const char *filename);
 
 void saveImage(const char *filename, Image *image);
 
-void createGaussianKernel1D(int radius, double sigma, double **kernel, double *sum);
+void createGaussianKernel1D(int radius, double sigma, double **kernel);
 
-void createGaussianKernel2D(int radius, double sigma, double **kernel, double *sum);
+void createFloatGaussianKernel1D(int radius, float sigma, float **kernel);
+
+void GaussianKernelFloat1DToSIMD(float* in, __m128** out, int w);
+
+void createGaussianKernel2D(int radius, double sigma, double **kernel);
 
 #endif /* guassonFilter_h */

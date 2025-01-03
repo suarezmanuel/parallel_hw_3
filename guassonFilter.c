@@ -21,7 +21,7 @@
 
 
 // Function to load an image
-Image *loadImage(const char *filename) {
+Imagef *loadImage(const char *filename) {
     int width, height, channels;
     unsigned char *data = stbi_load(filename, &width, &height, &channels, 4); // 4 means we want the image in RGBA format
     if (data == NULL) {
@@ -29,10 +29,10 @@ Image *loadImage(const char *filename) {
         return NULL;
     }
 
-    Image *image = (Image *)malloc(sizeof(Image));
+    Imagef *image = (Imagef *)malloc(sizeof(Image));
     image->width = width;
     image->height = height;
-    image->pixels = (RGBA *)malloc(width * height * sizeof(RGBA));
+    image->pixels = (RGBAf *)malloc(width * height * sizeof(RGBAf));
 
     for (int i = 0; i < width * height; i++) {
         image->pixels[i].r = data[4 * i + 0];
@@ -65,9 +65,9 @@ void saveImage(const char *filename, Image *image) {
     free(data);
 }
 
-void createGaussianKernel2D(int radius, double sigma, double **kernel, double *sum) {
+void createGaussianKernel2D(int radius, double sigma, double **kernel) {
     int kernelWidth = (2 * radius) + 1;
-    *sum = 0.0;
+    double sum = 0.0;
 
     *kernel = (double *)malloc(kernelWidth * kernelWidth * sizeof(double));
 
@@ -78,21 +78,21 @@ void createGaussianKernel2D(int radius, double sigma, double **kernel, double *s
             double eExpression = exp(exponentNumerator / exponentDenominator);
             double kernelValue = (eExpression / (2 * M_PI * sigma * sigma));
             (*kernel)[(x + radius) * kernelWidth + (y + radius)] = kernelValue;
-            *sum += kernelValue;
+            sum += kernelValue;
         }
     }
 
     for (int i = 0; i < kernelWidth * kernelWidth; i++) {
-        (*kernel)[i] /= *sum;
+        (*kernel)[i] /= sum;
     }
 }
 
 
-void createGaussianKernel1D(int radius, double sigma, double **kernel, double *sum) {
+void createGaussianKernel1D(int radius, double sigma, double **kernel) {
     int kernelWidth = (2 * radius) + 1;
-    *sum = 0.0;
+    double sum = 0.0;
 
-    *kernel = (double *)malloc(kernelWidth * kernelWidth * sizeof(double));
+    *kernel = (double *)malloc(kernelWidth * sizeof(double));
 
     for (int x = -radius; x <= radius; x++) {
         double exponentNumerator = -(x * x);
@@ -100,10 +100,41 @@ void createGaussianKernel1D(int radius, double sigma, double **kernel, double *s
         double eExpression = exp(exponentNumerator / exponentDenominator);
         double kernelValue = (eExpression / (2 * M_PI * sigma * sigma));
         (*kernel)[x + radius] = kernelValue;
-        *sum += kernelValue;
+        sum += kernelValue;
     }
 
-    for (int i = 0; i < kernelWidth * kernelWidth; i++) {
-        (*kernel)[i] /= *sum;
+    for (int i = 0; i < kernelWidth; i++) {
+        (*kernel)[i] /= sum;
+    }
+}
+
+void createFloatGaussianKernel1D(int radius, float sigma, float **kernel) {
+    int kernelWidth = (2 * radius) + 1;
+    double sum = 0.0;
+
+    *kernel = (float *)malloc(kernelWidth * sizeof(float));
+
+    for (int x = -radius; x <= radius; x++) {
+        double exponentNumerator = -(x * x);
+        double exponentDenominator = (2 * sigma * sigma);
+        double eExpression = exp(exponentNumerator / exponentDenominator);
+        double kernelValue = (eExpression / (2 * M_PI * sigma * sigma));
+        (*kernel)[x + radius] = kernelValue;
+        sum += kernelValue;
+    }
+
+    for (int i = 0; i < kernelWidth; i++) {
+        (*kernel)[i] /= sum;
+    }
+}
+
+
+void GaussianKernelFloat1DToSIMD(float* in, __m128** out, int w) {
+    
+    *out = (__m128*) malloc (w * sizeof(__m128));
+
+    for (int i=0; i < w; i++) {
+        float v = in[i];
+        (*out)[i] = _mm_set_ps(v, v, v, v);
     }
 }

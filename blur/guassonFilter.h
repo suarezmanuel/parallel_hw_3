@@ -1,3 +1,6 @@
+// 340858935 Manuel Ignacio Suarez Del Solar
+// 216270827 Azmon Avraham Zvi
+
 //
 //  guassonFilter.h
 //  guasonFilter

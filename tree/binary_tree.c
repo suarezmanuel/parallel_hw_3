@@ -1,4 +1,4 @@
-#include "tree.h"
+#include "binary_tree.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -17,9 +17,9 @@ TreeNode* insertNode(TreeNode* root, int data) {
     if (root == NULL) return createNode(data);
 
     TreeNode* curr = root;
-    TreeNode* next = (data <= curr->data) ? curr->left : curr->right;
-
     omp_set_lock(&curr->lock);
+
+    TreeNode* next = (data <= curr->data) ? curr->left : curr->right;
 
     while (next != NULL) {
 
@@ -51,12 +51,12 @@ TreeNode* deleteNode(TreeNode* root, int data) {
     TreeNode* curr = root;
     TreeNode* next = root;
 
-    omp_set_lock(&curr->lock);
     // this is for coherent locking, sets next similar to other functions 
-    if (next->data != data) { next = (data <= curr->data) ? curr->left : curr->right; }
+    omp_set_lock(&curr->lock);
 
+    if (next != NULL && next->data != data) { next = (data <= curr->data) ? curr->left : curr->right; }
     // check and aquire lock if necessary
-    while (next->data != data) {
+    while (next != NULL && next->data != data) {
 
         omp_set_lock(&next->lock);
 
@@ -72,18 +72,18 @@ TreeNode* deleteNode(TreeNode* root, int data) {
         if (next == NULL) { omp_unset_lock(&curr->lock); return root; }
     }
 
-    if (next->left == NULL && next->right == NULL) {
+    if (next != NULL && next->left == NULL && next->right == NULL) {
 
         curr->left  = (curr->left  != NULL && curr->left->data  == data) ? NULL : curr->left;
         curr->right = (curr->right != NULL && curr->right->data == data) ? NULL : curr->right;
         omp_unset_lock(&next->lock);
         // no node will come into undefined memory because we updated curr
-        omp_destroy_lock(&next->lock);
+        // omp_destroy_lock(&next->lock);
         free(next);
         if (next == root) return NULL;
 
     // if only one child
-    } else if ((next->left != NULL && next->right == NULL) || (next->left == NULL && next->right != NULL)){
+    } else if ((next != NULL && next->left != NULL && next->right == NULL) || (next != NULL && next->left == NULL && next->right != NULL)){
 
         TreeNode* child = (next->left != NULL) ? next->left : next->right;
 
@@ -91,11 +91,11 @@ TreeNode* deleteNode(TreeNode* root, int data) {
         curr->right = (curr->right != NULL && curr->right->data == data) ? child : curr->right;
         omp_unset_lock(&next->lock);
         // no node will come into undefined memory because we updated curr
-        omp_destroy_lock(&next->lock);
+        // omp_destroy_lock(&next->lock);
         free(next);
         if (next == root) root = child;
 
-    } else {
+    } else if (next != NULL) {
 
         TreeNode* succ = findMin(next->right);
         
@@ -116,10 +116,9 @@ bool searchNode(TreeNode* root, int data) {
     if (root->data == data) return true;
 
     TreeNode* curr = root;
-    TreeNode* next = (data <= curr->data) ? curr->left : curr->right;
-
-    // we lock in order to get correct info
     omp_set_lock(&curr->lock);
+
+    TreeNode* next = (data <= curr->data) ? curr->left : curr->right;
 
     while (next != NULL) {
 
@@ -146,9 +145,9 @@ TreeNode* findMin(TreeNode* root) {
     if (root == NULL) return NULL;
 
     TreeNode* curr = root;
-    TreeNode* next = curr->left;
-
     omp_set_lock(&curr->lock);
+
+    TreeNode* next = curr->left;
 
     while (next != NULL) {
         omp_set_lock(&next->lock);
@@ -211,6 +210,6 @@ void freeTree(TreeNode* root) {
 
     freeTree(root->left);
     freeTree(root->right);
-    omp_destroy_lock(&root->lock);
+    // omp_destroy_lock(&root->lock);
     free(root);
 }
